@@ -1,2 +1,1 @@
-main-class
-==========
+This is an example project for my blog at howitest.wordpress.com
