@@ -1,8 +1,10 @@
 package com.howitest.mainclass;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 
 import org.junit.Before;
@@ -12,24 +14,57 @@ import static org.mockito.Mockito.*;
 
 
 public class MainTest {
-	private ByteArrayOutputStream baos;
+	private ByteArrayOutputStream fakeOutput;
 	private Main mainClass;
+	private Converter converterMock;
 	
 	@Before
-	public void setUp() throws Exception {
+	public void beforeEachTest() throws Exception {
 		mainClass = new Main();
 		
-		baos = new ByteArrayOutputStream();
-		PrintStream out = new PrintStream(baos);
-		mainClass.redirectOutputTo(out);
+		fakeOutput = new ByteArrayOutputStream();
+		PrintStream newOut = new PrintStream(fakeOutput);
+		mainClass.redirectOutputTo(newOut);
 		
-		Converter converterMock = mock(Converter.class);
+		converterMock = mock(Converter.class);
 		mainClass.setConverter(converterMock);
 	}
 
 	@Test
-	public void test() {
+	public void shouldPrintHelp() {
 		mainClass.execute(new String[]{"-help"});
+		String capturedOutput = new String(fakeOutput.toByteArray());
+		
+		assertThat(capturedOutput, containsString("Usage: java -jar"));
+	}
+	
+	@Test
+	public void shouldConvertSuccessfully() throws IOException {
+		mainClass.execute(new String[]{
+				"-infile", "test.txt", "-outfile", "test.pdf"});
+		String capturedOutput = new String(fakeOutput.toByteArray());
+		
+		verify(converterMock).convertTxtToPdf("test.txt", "test.pdf");
+		assertThat(capturedOutput, containsString("Finished conversion."));
+	}
+
+	@Test
+	public void shouldComplainAboutArguments() {
+		mainClass.execute(new String[]{"-infile", "test.txt"});
+		String capturedOutput = new String(fakeOutput.toByteArray());
+		
+		assertThat(capturedOutput, containsString("incorrect number"));
+	}
+
+	@Test
+	public void shouldCatchException() throws IOException {
+		doThrow(new IOException("File not found")).
+			when(converterMock).convertTxtToPdf(anyString(), anyString());
+		mainClass.execute(new String[]{
+			"-infile", "test.txt", "-outfile", "test.pdf"});
+		String capturedOutput = new String(fakeOutput.toByteArray());
+		
+		assertThat(capturedOutput, containsString("Error: File not found"));
 	}
 
 }
